@@ -195,26 +195,20 @@ def _call_anthropic(
         # Get API version from environment or use default
         api_version = os.getenv(ANTHROPIC_API_VERSION_ENV) or DEFAULT_ANTHROPIC_VERSION
         
-        # Prepare headers for httpx client
+        # Prepare headers for Anthropic client
         headers = {
-            "x-api-key": api_key,
             "anthropic-version": api_version
+            # API key is passed directly to the client constructor below
         }
 
-        # Configure httpx client explicitly, controlling arguments
-        # Pass base_url and headers here, explicitly set proxies=None
-        # Consider adding timeout if needed: timeout=60.0
-        logger.info(f"Initializing httpx.Client for Anthropic. Base URL: {api_endpoint}, Version Header: {api_version}")
-        http_client = httpx.Client(
-            base_url=api_endpoint or anthropic.Anthropic.DEFAULT_BASE_URL, 
-            headers=headers,
-            proxies=None, # Explicitly disable proxy auto-detection
-            timeout=60.0 # Example timeout
+        # Initialize Anthropic client directly
+        logger.info(f"Initializing Anthropic client. Base URL: {api_endpoint}, Version Header: {api_version}")
+        client = anthropic.Anthropic(
+            api_key=api_key,
+            base_url=api_endpoint, # Handles None correctly
+            timeout=60.0,
+            default_headers=headers
         )
-
-        # Pass the pre-configured httpx client to the Anthropic client
-        # We don't need api_key, base_url, or default_headers here anymore
-        client = anthropic.Anthropic(http_client=http_client)
 
         logger.debug(f"Calling Anthropic model {model_name}...")
         message = client.messages.create(

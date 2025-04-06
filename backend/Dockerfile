@@ -22,7 +22,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
 
 # Copy the application code and context directory into the container
 COPY --chown=app:app backend/ /app/backend/
-COPY --chown=app:app context/ /app/context/
+COPY --chown=app:app Context/ /app/context/
 
 # Switch to the non-root user
 USER app

@@ -29,7 +29,9 @@ function App() {
                               originModel, 
                               analysisModel, 
                               originApiKey,
-                              analysisApiKey
+                              analysisApiKey,
+                              originApiEndpoint,
+                              analysisApiEndpoint
                             ) => {
     setLoading(true);
     setError(null);
@@ -48,7 +50,9 @@ function App() {
           originModel, 
           analysisModel,
           originApiKey,
-          analysisApiKey
+          analysisApiKey,
+          originApiEndpoint,
+          analysisApiEndpoint
       );
       
       setResults({

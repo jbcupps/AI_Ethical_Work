@@ -352,4 +352,42 @@ button:disabled {
 /* Ensure labels in rows align nicely */
 .form-row label {
   /* Adjust styles if needed, e.g., min-height */
+}
+
+/* Styles for form sections within details */
+.form-section {
+  border-top: 1px dashed var(--color-border-standard);
+  padding-top: var(--spacing-md);
+  margin-top: var(--spacing-md);
+}
+.optional-settings .form-section:first-of-type {
+  border-top: none;
+  padding-top: 0;
+  margin-top: 0;
+}
+
+.form-section h4 {
+  margin-top: 0;
+  margin-bottom: var(--spacing-md);
+  font-size: 1.1em;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+/* Styles for 3-column form groups */
+.form-group-third {
+  flex: 1; /* Each takes up a third of the space */
+  min-width: 150px; /* Adjust min-width as needed */
+  margin-bottom: 0; 
+}
+
+/* Adjust label styles within sections if needed */
+.form-section label {
+   font-weight: normal; /* Keep labels less prominent */
+   margin-bottom: var(--spacing-xs); /* Reduce space below label */
+}
+
+/* Remove bottom margin from last form row in a section */
+.form-section .form-row:last-of-type {
+  margin-bottom: 0;
 } 

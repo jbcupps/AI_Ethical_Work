@@ -36,6 +36,10 @@ textarea, input, select {
 textarea {
   min-height: 150px;
   resize: vertical;
+  /* Ensure long words break and wrap */
+  word-wrap: break-word; /* Deprecated, but good fallback */
+  overflow-wrap: break-word; /* Standard property */
+  white-space: pre-wrap; /* Preserve whitespace and wrap */
 }
 
 button {
@@ -72,7 +76,22 @@ button:disabled {
   border-radius: 4px;
   padding: 15px;
   margin-bottom: 20px;
-  white-space: pre-wrap;
+  white-space: pre-wrap; /* Already ensures wrapping for pre */
+  /* Add explicit word break for long unbroken strings */
+  word-wrap: break-word; /* Fallback */
+  overflow-wrap: break-word; /* Standard */
+}
+
+/* Add styles for pre within the scores section */
+.scores-section pre {
+  background-color: #f8f9fa; /* Optional: Match result-box style */
+  border: 1px solid #eee;    /* Optional: Match result-box style */
+  border-radius: 4px;        /* Optional: Match result-box style */
+  padding: 10px;             /* Optional: Adjust padding */
+  margin-top: 5px;           /* Optional: Space above justification */
+  white-space: pre-wrap;     /* Preserve whitespace and wrap */
+  word-wrap: break-word;     /* Fallback for long words */
+  overflow-wrap: break-word; /* Standard for long words */
 }
 
 /* Loading indicator */

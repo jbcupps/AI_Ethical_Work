@@ -34,10 +34,6 @@ env/
 # Avoid committing built images or containers if stored locally
 # docker-compose logs often end up here if not configured otherwise
 *.log
-# context/
-
-# Explicitly ignore the prompts log file within the context directory
-context/prompts.txt
 
 # OS generated files
 .DS_Store
@@ -45,6 +41,9 @@ Thumbs.db
 
 # Deployment Scripts
 deploy_to_acr.ps1
+
+# Logs / Context Data (Ignore the whole directory)
+context/
 
 # Editor directories and files
 .vscode

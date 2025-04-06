@@ -2,6 +2,8 @@
 
 # Environment variables
 .env
+# Example environment file (Checked into Git)
+!.env.example
 
 # Python cache and compiled files
 __pycache__/
@@ -160,4 +162,9 @@ dist
 .yarn/unplugged
 .yarn/build-state.yml
 .yarn/install-state.gz
-.pnp.* 
+.pnp.*
+
+# Context directory
+Context/
+# Ensure prompts.txt in Context is NOT ignored if Context itself is
+!Context/prompt.txt 

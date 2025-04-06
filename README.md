@@ -161,4 +161,35 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Acknowledgments
 
 *   Utilizes APIs from OpenAI, Google Gemini, and Anthropic.
-*   Built with Flask, React, Docker. 
+*   Built with Flask, React, Docker.
+
+### Local Setup
+
+1.  **Prerequisites:**
+    *   Docker and Docker Compose
+    *   Git
+    *   API Keys for desired LLM providers (OpenAI, Anthropic, Gemini)
+
+2.  **Clone the Repository:**
+    ```bash
+    git clone <your-repository-url>
+    cd <repository-directory>
+    ```
+
+3.  **Configure Environment Variables:**
+    *   Create a `.env` file in the project root by copying the example file:
+      ```powershell
+      Copy-Item .env.example .env
+      ```
+    *   **Important:** Open the newly created `.env` file and replace the placeholder values (e.g., `"YOUR_GEMINI_API_KEY_HERE"`, `"YOUR_DEFAULT_ANALYSIS_MODEL_HERE"`) with your actual API keys and desired default model configurations. The `ANALYSIS_LLM_MODEL_ENV` is required.
+    *   The `.env` file is listed in `.gitignore` and should **never** be committed to the repository.
+
+4.  **Build and Run Containers:**
+    *   From the project root directory, run:
+      ```powershell
+      docker compose up -d --build
+      ```
+    *   This command builds the Docker images (if they don't exist or if code has changed) and starts the `backend` and `frontend` services in detached mode (`-d`).
+
+5.  **Access the Application:**
+    *   Open your web browser and navigate to `http://localhost:80` (or just `http://localhost`). 

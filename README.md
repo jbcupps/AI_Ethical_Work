@@ -181,7 +181,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
       ```powershell
       Copy-Item .env.example .env
       ```
-    *   **Important:** Open the newly created `.env` file and replace the placeholder values (e.g., `"YOUR_GEMINI_API_KEY_HERE"`, `"YOUR_DEFAULT_ANALYSIS_MODEL_HERE"`) with your actual API keys and desired default model configurations. The `ANALYSIS_LLM_MODEL_ENV` is required.
+    *   **Important:** Open the newly created `.env` file and replace the placeholder values (e.g., `"YOUR_GEMINI_API_KEY_HERE"`, `"YOUR_DEFAULT_ANALYSIS_MODEL_HERE"`) with your actual API keys and desired default model configurations. The `ANALYSIS_LLM_MODEL` variable is required.
     *   The `.env` file is listed in `.gitignore` and should **never** be committed to the repository.
 
 4.  **Build and Run Containers:**

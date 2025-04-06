@@ -1,6 +1,9 @@
 # Node.js base image for building the React app
 FROM node:18-alpine as build
 
+# Update build stage packages first (less critical but good practice)
+RUN apk update && apk upgrade --no-cache
+
 # Set the working directory
 WORKDIR /app
 
@@ -18,6 +21,10 @@ RUN npm run build
 
 # Nginx base image for serving the built React app
 FROM nginx:stable-alpine
+
+# Update packages in the final Nginx stage to patch vulnerabilities
+# This is the critical step for fixing the reported CVEs
+RUN apk update && apk upgrade --no-cache
 
 # Copy the build output from the previous stage
 COPY --from=build /app/build /usr/share/nginx/html

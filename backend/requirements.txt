@@ -1,0 +1,6 @@
+# Backend API Requirements
+Flask>=2.3.0,<3.1.0 # Web framework
+Flask-CORS>=4.0.0,<5.0.0 # Cross-Origin Resource Sharing support
+google-generativeai==0.5.3 # Gemini API - fixed version for compatibility
+anthropic>=0.20.0,<0.26.0 # Anthropic (Claude) API
+gunicorn>=21.0.0,<23.0.0 # WSGI server for production 

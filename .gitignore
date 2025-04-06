@@ -1,0 +1,38 @@
+# Git Ignore File
+
+# Environment variables
+.env
+
+# Python cache and compiled files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environment directory
+.venv/
+venv/
+env/
+
+# IDE / Editor specific files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+
+# Build artifacts
+/build/
+/dist/
+*.egg-info/
+
+# Docker
+# Avoid committing built images or containers if stored locally
+# docker-compose logs often end up here if not configured otherwise
+*.log
+
+# OS generated files
+.DS_Store
+Thumbs.db 

@@ -99,7 +99,7 @@ TriangleEthic/                      # Project Root
 
     # --- Default Model Selections ---
     # Choose a default model for initial response (R1) from the available lists
-    DEFAULT_LLM_MODEL=gemini-1.5-pro-latest # Example: "gpt-4o", "gemini-1.5-pro-latest", "claude-3-sonnet-20240229"
+    DEFAULT_LLM_MODEL=claude-3-sonnet-20240229 # Example: "gpt-4o", "gemini-1.5-pro-latest"
 
     # Choose a default model for ethical analysis (R2) from the available lists
     ANALYSIS_LLM_MODEL=claude-3-sonnet-20240229 # Example
@@ -181,7 +181,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
       ```powershell
       Copy-Item .env.example .env
       ```
-    *   **Important:** Open the newly created `.env` file and replace the placeholder values (e.g., `"YOUR_GEMINI_API_KEY_HERE"`, `"YOUR_DEFAULT_ANALYSIS_MODEL_HERE"`) with your actual API keys and desired default model configurations. The `ANALYSIS_LLM_MODEL` variable is required.
+    *   **Important:** Open the newly created `.env` file and replace the placeholder values (e.g., `"YOUR_GEMINI_API_KEY_HERE"`, `"YOUR_DEFAULT_ANALYSIS_MODEL_HERE"`) with your actual API keys and desired default model configurations. Set `DEFAULT_LLM_MODEL` for the default R1 model and `ANALYSIS_LLM_MODEL` for the default R2 model (R2 is required).
     *   The `.env` file is listed in `.gitignore` and should **never** be committed to the repository.
 
 4.  **Build and Run Containers:**

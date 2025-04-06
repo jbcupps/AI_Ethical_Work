@@ -27,11 +27,8 @@ export const ethicalReviewApi = {
   // Submit a prompt for analysis
   analyzePrompt: async (prompt, model, apiKey = null) => {
     try {
-      const payload = {
-        prompt,
-        model,
-        api_key: apiKey,
-      };
+      // Only include prompt in the payload, letting the server use defaults
+      const payload = { prompt };
       
       const response = await apiClient.post('/analyze', payload);
       return response.data;

@@ -4,6 +4,7 @@ import os
 import logging
 import google.generativeai as genai
 import anthropic
+import httpx # Import httpx
 from typing import Optional, Dict, List, Any, Tuple, TypedDict
 from google.api_core import exceptions as google_exceptions # For specific error handling
 from anthropic import APIError as AnthropicAPIError, APIConnectionError as AnthropicConnectionError, APITimeoutError as AnthropicTimeoutError # For specific error handling
@@ -18,6 +19,10 @@ class SafetySettingDict(TypedDict):
 # --- Constants ---
 MODEL_TYPE_GEMINI = "gemini"
 MODEL_TYPE_ANTHROPIC = "claude"
+
+# Environment variable for Anthropic API version
+ANTHROPIC_API_VERSION_ENV = "ANTHROPIC_API_VERSION"
+DEFAULT_ANTHROPIC_VERSION = "2023-06-01"  # Default if not specified
 
 # Default safety settings for Gemini (BLOCK_MEDIUM_AND_ABOVE)
 DEFAULT_GEMINI_SAFETY_SETTINGS: List[SafetySettingDict] = [
@@ -164,15 +169,29 @@ def _call_anthropic(
     """Handles the specific logic for calling the Anthropic API with robust error handling."""
     log_prompt_start = prompt[:100] # For logging
     try:
-        client_kwargs = {"api_key": api_key}
-        if api_endpoint:
-            logger.info(f"Using custom Anthropic base_url: {api_endpoint}")
-            client_kwargs["base_url"] = api_endpoint
+        # Get API version from environment or use default
+        api_version = os.getenv(ANTHROPIC_API_VERSION_ENV) or DEFAULT_ANTHROPIC_VERSION
+        
+        # Prepare headers for httpx client
+        headers = {
+            "x-api-key": api_key,
+            "anthropic-version": api_version
+        }
 
-        # Consider adding timeout configuration if needed
-        # client_kwargs["timeout"] = 60.0 # Example timeout in seconds
+        # Configure httpx client explicitly, controlling arguments
+        # Pass base_url and headers here, explicitly set proxies=None
+        # Consider adding timeout if needed: timeout=60.0
+        logger.info(f"Initializing httpx.Client for Anthropic. Base URL: {api_endpoint}, Version Header: {api_version}")
+        http_client = httpx.Client(
+            base_url=api_endpoint or anthropic.Anthropic.DEFAULT_BASE_URL, 
+            headers=headers,
+            proxies=None, # Explicitly disable proxy auto-detection
+            timeout=60.0 # Example timeout
+        )
 
-        client = anthropic.Anthropic(**client_kwargs)
+        # Pass the pre-configured httpx client to the Anthropic client
+        # We don't need api_key, base_url, or default_headers here anymore
+        client = anthropic.Anthropic(http_client=http_client)
 
         logger.debug(f"Calling Anthropic model {model_name}...")
         message = client.messages.create(

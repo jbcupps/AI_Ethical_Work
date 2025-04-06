@@ -1,31 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import ethicalReviewApi from '../services/api';
+import React, { useState } from 'react';
 
 const PromptForm = ({ onSubmit, isLoading }) => {
   const [prompt, setPrompt] = useState('');
-  const [selectedModel, setSelectedModel] = useState('');
-  const [apiKey, setApiKey] = useState('');
-  const [models, setModels] = useState([]);
   const [error, setError] = useState('');
-  
-  // Fetch available models on component mount
-  useEffect(() => {
-    const fetchModels = async () => {
-      try {
-        const modelList = await ethicalReviewApi.getModels();
-        setModels(modelList);
-        // Set default model
-        if (modelList.length > 0) {
-          setSelectedModel(modelList[0]);
-        }
-      } catch (err) {
-        setError('Error loading models. Please try again later.');
-        console.error('Error fetching models:', err);
-      }
-    };
-    
-    fetchModels();
-  }, []);
   
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -35,7 +12,8 @@ const PromptForm = ({ onSubmit, isLoading }) => {
     }
     
     setError('');
-    onSubmit(prompt, selectedModel, apiKey || null);
+    // Pass null for model and apiKey to use server defaults
+    onSubmit(prompt, null, null);
   };
   
   return (
@@ -51,37 +29,11 @@ const PromptForm = ({ onSubmit, isLoading }) => {
             onChange={(e) => setPrompt(e.target.value)}
             required
             disabled={isLoading}
+            placeholder="Enter your prompt here. The system will use the default API keys and model configuration."
           />
         </div>
         
-        <div className="form-group">
-          <label htmlFor="model-select">Select Model:</label>
-          <select
-            id="model-select"
-            value={selectedModel}
-            onChange={(e) => setSelectedModel(e.target.value)}
-            disabled={isLoading || models.length === 0}
-          >
-            {models.map(model => (
-              <option key={model} value={model}>{model}</option>
-            ))}
-          </select>
-        </div>
-        
-        <div className="form-group">
-          <label htmlFor="api-key">
-            API Key (Optional - uses environment variable if blank):
-          </label>
-          <input
-            type="password"
-            id="api-key"
-            value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
-            disabled={isLoading}
-          />
-        </div>
-        
-        <button type="submit" disabled={isLoading || !selectedModel}>
+        <button type="submit" disabled={isLoading}>
           {isLoading ? 'Processing...' : 'Generate & Analyze'}
         </button>
       </form>

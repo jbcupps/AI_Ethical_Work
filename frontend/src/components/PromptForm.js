@@ -1,7 +1,11 @@
 import React, { useState } from 'react';
 
-const PromptForm = ({ onSubmit, isLoading }) => {
+const PromptForm = ({ onSubmit, isLoading, availableModels = [] }) => {
   const [prompt, setPrompt] = useState('');
+  const [originModel, setOriginModel] = useState('');
+  const [analysisModel, setAnalysisModel] = useState('');
+  const [originApiKey, setOriginApiKey] = useState('');
+  const [analysisApiKey, setAnalysisApiKey] = useState('');
   const [error, setError] = useState('');
   
   const handleSubmit = (e) => {
@@ -12,8 +16,7 @@ const PromptForm = ({ onSubmit, isLoading }) => {
     }
     
     setError('');
-    // Pass null for model and apiKey to use server defaults
-    onSubmit(prompt, null, null);
+    onSubmit(prompt, originModel, analysisModel, originApiKey, analysisApiKey);
   };
   
   return (
@@ -29,9 +32,74 @@ const PromptForm = ({ onSubmit, isLoading }) => {
             onChange={(e) => setPrompt(e.target.value)}
             required
             disabled={isLoading}
-            placeholder="Enter your prompt here. The system will use the default API keys and model configuration."
+            placeholder="Enter your prompt here..."
           />
         </div>
+        
+        <details className="optional-settings">
+          <summary>Optional: Specify Models & API Keys</summary>
+          
+          <div className="form-row">
+            <div className="form-group form-group-half">
+              <label htmlFor="originModel">Origin Model (R1 - Optional):</label>
+              <input
+                type="text"
+                id="originModel"
+                value={originModel}
+                onChange={(e) => setOriginModel(e.target.value)}
+                disabled={isLoading}
+                placeholder="Default (from .env)"
+              />
+              <small>Leave blank to use server default.</small>
+            </div>
+
+            <div className="form-group form-group-half">
+              <label htmlFor="originApiKey">Origin API Key (Optional):</label>
+              <input
+                type="password"
+                id="originApiKey"
+                value={originApiKey}
+                onChange={(e) => setOriginApiKey(e.target.value)}
+                disabled={isLoading}
+                placeholder="Default (from .env)"
+                autoComplete="off"
+              />
+              <small>Leave blank to use server default.</small>
+            </div>
+          </div>
+          
+          <div className="form-row">
+            <div className="form-group form-group-half">
+              <label htmlFor="analysisModel">Ethical Review Model (R2 - Optional):</label>
+              <select
+                id="analysisModel"
+                value={analysisModel}
+                onChange={(e) => setAnalysisModel(e.target.value)}
+                disabled={isLoading || availableModels.length === 0}
+              >
+                <option value="">Default (from .env)</option>
+                {availableModels.map(model => (
+                  <option key={model} value={model}>{model}</option>
+                ))}
+              </select>
+              {availableModels.length === 0 && !isLoading && <small>Loading models...</small>}
+            </div>
+
+            <div className="form-group form-group-half">
+              <label htmlFor="analysisApiKey">Ethical Review API Key (Optional):</label>
+              <input
+                type="password"
+                id="analysisApiKey"
+                value={analysisApiKey}
+                onChange={(e) => setAnalysisApiKey(e.target.value)}
+                disabled={isLoading}
+                placeholder="Default (from .env)"
+                autoComplete="off"
+              />
+              <small>Leave blank to use server default.</small>
+            </div>
+          </div>
+        </details>
         
         <button type="submit" disabled={isLoading}>
           {isLoading ? 'Processing...' : 'Generate & Analyze'}

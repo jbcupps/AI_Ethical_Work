@@ -6,8 +6,15 @@ const capitalize = (s) => {
   return s.charAt(0).toUpperCase() + s.slice(1).replace('_', ' ') // Replace underscore for display
 }
 
-const Results = ({ prompt, initialResponse, ethicalAnalysisText, ethicalScores }) => {
-  // Don't render anything if no prompt is available (initial state)
+const Results = ({ 
+  prompt, 
+  originModelUsed, 
+  analysisModelUsed, 
+  initialResponse, 
+  ethicalAnalysisText, 
+  ethicalScores 
+}) => {
+  // Don't render anything if no prompt is available (initial state or error before R1)
   if (!prompt) {
     return null;
   }
@@ -18,13 +25,19 @@ const Results = ({ prompt, initialResponse, ethicalAnalysisText, ethicalScores }
     <div className="results-container">
       <h2>Results</h2>
       
+      {/* Display Used Models */}
+      <div className="model-info-box">
+        {originModelUsed && <p><strong>Origin Model Used (R1):</strong> {originModelUsed}</p>}
+        {analysisModelUsed && <p><strong>Analysis Model Used (R2):</strong> {analysisModelUsed}</p>}
+      </div>
+      
       {/* Initial Prompt */}
       <div>
         <h3>Initial Prompt (P1)</h3>
         <div className="result-box"><pre>{prompt}</pre></div>
       </div>
       
-      {/* Generated Response */}
+      {/* Generated Response (R1) */}
       {initialResponse && (
         <div>
           <h3>Generated Response (R1)</h3>
@@ -32,31 +45,28 @@ const Results = ({ prompt, initialResponse, ethicalAnalysisText, ethicalScores }
         </div>
       )}
       
-      {/* Textual Ethical Analysis */}
+      {/* Textual Ethical Analysis (R2) */}
       {ethicalAnalysisText && (
         <div>
-          <h3>Ethical Review Summary</h3>
+          <h3>Ethical Review Summary (R2)</h3>
           <div className="result-box"><pre>{ethicalAnalysisText}</pre></div>
         </div>
       )}
 
-      {/* Ethical Scores Section (Conditional) */}
+      {/* Ethical Scores Section (R2) (Conditional) */}
       {ethicalAnalysisText && ( // Only show scoring section if analysis text exists
         <div className="scores-section"> 
-          <h3>Ethical Scoring (R1)</h3>
+          <h3>Ethical Scoring (R2)</h3>
           {ethicalScores && scoreDimensions.length > 0 ? (
             // Render scores if available
             scoreDimensions.map((dimKey) => {
-              // Use optional chaining for safer access, though ?? handles missing values
               const dimensionData = ethicalScores?.[dimKey]; 
               return (
                 <div key={dimKey} className="dimension-score-box">
                   <h4>{capitalize(dimKey)}</h4>
-                  {/* Ensure dimensionData exists before accessing properties */}
                   <p><strong>Adherence Score:</strong> {dimensionData?.adherence_score ?? 'N/A'} / 10</p>
                   <p><strong>Confidence Score:</strong> {dimensionData?.confidence_score ?? 'N/A'} / 10</p>
                   <p><strong>Justification:</strong></p>
-                  {/* Use optional chaining and fallback for justification */}
                   <pre>{dimensionData?.justification || 'N/A'}</pre>
                 </div>
               );
@@ -66,6 +76,14 @@ const Results = ({ prompt, initialResponse, ethicalAnalysisText, ethicalScores }
             <p><em>Ethical scoring data could not be generated or parsed.</em></p>
           )}
         </div>
+      )}
+      
+      {/* Handle case where R1 succeeded but R2 failed */}
+      {initialResponse && !ethicalAnalysisText && (
+         <div>
+           <h3>Ethical Review Summary (R2)</h3>
+           <p><em>Ethical analysis could not be generated.</em></p>
+         </div>
       )}
     </div>
   );

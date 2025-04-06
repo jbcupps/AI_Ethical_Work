@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './App.css';
 import PromptForm from './components/PromptForm';
 import Results from './components/Results';
@@ -7,28 +7,54 @@ import ethicalReviewApi from './services/api';
 function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [availableModels, setAvailableModels] = useState([]);
   const [results, setResults] = useState({
     prompt: '',
+    originModelUsed: '',
+    analysisModelUsed: '',
     initialResponse: '',
     ethicalAnalysisText: '',
     ethicalScores: null
   });
 
-  const handleSubmit = async (prompt, model, apiKey) => {
+  useEffect(() => {
+    const fetchModels = async () => {
+      const models = await ethicalReviewApi.getModels();
+      setAvailableModels(models);
+    };
+    fetchModels();
+  }, []);
+
+  const handleSubmit = async (prompt, 
+                              originModel, 
+                              analysisModel, 
+                              originApiKey,
+                              analysisApiKey
+                            ) => {
     setLoading(true);
     setError(null);
     setResults({
       prompt: '',
+      originModelUsed: '',
+      analysisModelUsed: '',
       initialResponse: '',
       ethicalAnalysisText: '',
       ethicalScores: null
     });
     
     try {
-      const response = await ethicalReviewApi.analyzePrompt(prompt, model, apiKey);
+      const response = await ethicalReviewApi.analyzePrompt(
+          prompt, 
+          originModel, 
+          analysisModel,
+          originApiKey,
+          analysisApiKey
+      );
       
       setResults({
         prompt: response.prompt,
+        originModelUsed: response.model,
+        analysisModelUsed: response.analysis_model,
         initialResponse: response.initial_response,
         ethicalAnalysisText: response.ethical_analysis_text,
         ethicalScores: response.ethical_scores
@@ -51,6 +77,7 @@ function App() {
         <PromptForm 
           onSubmit={handleSubmit}
           isLoading={loading}
+          availableModels={availableModels}
         />
         
         {loading && (
@@ -61,6 +88,8 @@ function App() {
         
         <Results 
           prompt={results.prompt}
+          originModelUsed={results.originModelUsed}
+          analysisModelUsed={results.analysisModelUsed}
           initialResponse={results.initialResponse}
           ethicalAnalysisText={results.ethicalAnalysisText}
           ethicalScores={results.ethicalScores}

@@ -32,7 +32,10 @@ env/
 # Avoid committing built images or containers if stored locally
 # docker-compose logs often end up here if not configured otherwise
 *.log
-context/
+# context/
+
+# Explicitly ignore the prompts log file within the context directory
+context/prompts.txt
 
 # OS generated files
 .DS_Store

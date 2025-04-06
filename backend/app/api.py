@@ -75,59 +75,112 @@ def log_prompt(prompt: str, model_name: str, filepath: str = PROMPT_LOG_FILEPATH
         logger.error(f"Error logging prompt: {e}")
 
 def _get_api_config(selected_model: str, form_api_key: Optional[str]) -> Dict[str, Any]:
-    """Determines the API key and endpoint based ONLY on environment variables for the selected model."""
+    """
+    Determines the API key and endpoint for the R1 model.
+    Prioritizes the form_api_key if provided, otherwise falls back to environment variables.
+    """
     api_key = None
     api_endpoint = None
     error = None
+    key_source = "Environment Variable"
     
     logger.info(f"_get_api_config: Fetching config for selected_model: {selected_model}")
+    logger.info(f"_get_api_config: Received form_api_key: {'Provided' if form_api_key else 'Not Provided'}")
 
     # Determine required env var names based on model
     if selected_model in GEMINI_MODELS:
-        api_key_name = "Gemini"
+        api_key_name = "Origin Gemini"
         env_var_key = GEMINI_API_KEY_ENV
         env_var_endpoint = GEMINI_API_ENDPOINT_ENV
     elif selected_model in ANTHROPIC_MODELS:
-        api_key_name = "Anthropic"
+        api_key_name = "Origin Anthropic"
         env_var_key = ANTHROPIC_API_KEY_ENV
         env_var_endpoint = ANTHROPIC_API_ENDPOINT_ENV
     else:
-        error_msg = f"Invalid model specified in _get_api_config: {selected_model}"
-        logger.error(error_msg)
-        return {"error": error_msg}
+        # Handle cases where the user might provide a custom model name not in our lists
+        # We can't determine the correct ENV VAR, so we MUST rely on the provided key
+        api_key_name = f"Custom Origin Model ({selected_model})"
+        env_var_key = None # Cannot determine ENV VAR for unknown model
+        env_var_endpoint = None
+        logger.warning(f"_get_api_config: Unknown model '{selected_model}' provided. Will rely solely on form_api_key if provided.")
 
-    # Fetch API key and endpoint directly from environment variables
-    api_key = os.getenv(env_var_key)
-    api_endpoint = os.getenv(env_var_endpoint)
-
-    # Validate API Key was found in environment
-    if not api_key:
-        error = f"API Key for {api_key_name} (model: {selected_model}) not found in environment variable {env_var_key}."
-        logger.error(error)
-    else:
-        logger.info(f"_get_api_config: Found API key for {api_key_name} in {env_var_key}")
-
+    # 1. Prioritize API key provided in the form
+    if form_api_key and isinstance(form_api_key, str) and form_api_key.strip():
+        api_key = form_api_key.strip()
+        key_source = "User Input"
+        logger.info(f"_get_api_config: Using API key provided via form for {api_key_name}.")
     
+    # 2. Fallback to environment variable if form key wasn't provided AND we know the variable name
+    elif env_var_key:
+        api_key = os.getenv(env_var_key)
+        if api_key:
+             key_source = f"Environment Variable ({env_var_key})"
+             logger.info(f"_get_api_config: Using API key from environment variable {env_var_key} for {api_key_name}.")
+
+    # 3. Fetch API Endpoint (always from environment for now, could be extended)
+    if env_var_endpoint:
+        api_endpoint = os.getenv(env_var_endpoint)
+        if api_endpoint:
+            logger.info(f"_get_api_config: Found API endpoint in {env_var_endpoint}")
+        else:
+             logger.info(f"_get_api_config: No API endpoint found in {env_var_endpoint}")
+    else:
+         logger.info("_get_api_config: Cannot determine endpoint environment variable for unknown model.")
+
+    # 4. Validate that *some* API Key was found (either from form or env)
+    if not api_key:
+        # Construct a helpful error message based on whether an env var was expected
+        if env_var_key:
+            error = f"API Key for {api_key_name} (model: {selected_model}) not found. Provide one in the form or set the {env_var_key} environment variable."
+        else: # Case for unknown model type
+            error = f"API Key for custom model '{selected_model}' was not provided in the form."
+        logger.error(error)
+
+    # Log the final key source
+    if not error:
+        logger.info(f"_get_api_config: Final key source for {selected_model}: {key_source}")
+        
     return {
         "api_key": api_key,
         "api_endpoint": api_endpoint,
         "error": error
     }
 
-def _get_analysis_api_config() -> Dict[str, Any]:
-    """Determines the API key, model, and endpoint for the Analysis LLM from environment variables."""
-    analysis_model = os.getenv(ANALYSIS_LLM_MODEL_ENV)
+def _get_analysis_api_config(selected_analysis_model: Optional[str] = None, 
+                             form_analysis_api_key: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Determines the API key, model, and endpoint for the Analysis LLM.
+    Uses the selected_analysis_model if provided and valid, otherwise falls back
+    to the ANALYSIS_LLM_MODEL environment variable.
+    Prioritizes form_analysis_api_key if provided, otherwise falls back to environment variables
+    (checking specific analysis keys first, then general keys).
+    """
+    analysis_model = selected_analysis_model # Use provided model first
+    key_source = "Environment Variable"
+
+    # --- Determine Analysis Model --- 
+    # (Same logic as before to determine the actual model to use)
+    if not analysis_model or analysis_model not in ALL_MODELS:
+        if selected_analysis_model and selected_analysis_model not in ALL_MODELS:
+             logger.warning(f"_get_analysis_api_config: Invalid analysis model selected ('{selected_analysis_model}'). Falling back to environment default.")
+        
+        default_analysis_model_env = os.getenv(ANALYSIS_LLM_MODEL_ENV)
+        if not default_analysis_model_env or default_analysis_model_env not in ALL_MODELS:
+            error_msg = f"Analysis LLM model is not configured correctly. Neither selected ('{selected_analysis_model}') nor default env var {ANALYSIS_LLM_MODEL_ENV} ('{default_analysis_model_env}') are valid."
+            logger.error(error_msg)
+            return {"error": error_msg, "model": None, "api_key": None, "api_endpoint": None}
+        
+        analysis_model = default_analysis_model_env
+        logger.info(f"_get_analysis_api_config: Using default analysis model from env var {ANALYSIS_LLM_MODEL_ENV}: {analysis_model}")
+    else:
+         logger.info(f"_get_analysis_api_config: Using user-selected analysis model: {analysis_model}")
+
+    # --- Determine API Key & Endpoint --- 
     api_key = None
     api_endpoint = None
     error = None
 
-    if not analysis_model:
-        # Option A: Return error if ANALYSIS_LLM_MODEL is not set
-        error_msg = f"Analysis LLM is not configured. Set the {ANALYSIS_LLM_MODEL_ENV} environment variable."
-        logger.warning(error_msg)
-        return {"error": error_msg, "model": None, "api_key": None, "api_endpoint": None}
-
-    # Determine required env var names based on the configured analysis model
+    # Determine required env var names based on the *determined* analysis model
     if analysis_model in GEMINI_MODELS:
         api_key_name = "Analysis Gemini"
         specific_key_env = ANALYSIS_GEMINI_API_KEY_ENV
@@ -140,28 +193,48 @@ def _get_analysis_api_config() -> Dict[str, Any]:
         fallback_key_env = ANTHROPIC_API_KEY_ENV
         specific_endpoint_env = ANALYSIS_ANTHROPIC_API_ENDPOINT_ENV
         fallback_endpoint_env = ANTHROPIC_API_ENDPOINT_ENV
-    else:
-        error_msg = f"Invalid analysis model specified in {ANALYSIS_LLM_MODEL_ENV}: {analysis_model}"
+    else: 
+        # Should not be reached due to model validation above
+        error_msg = f"Internal Error: Invalid analysis model determined: {analysis_model}"
         logger.error(error_msg)
         return {"error": error_msg, "model": analysis_model, "api_key": None, "api_endpoint": None}
 
-    # Get API Key: Prioritize specific analysis key, then fallback to standard key
-    api_key = os.getenv(specific_key_env) or os.getenv(fallback_key_env)
+    # 1. Prioritize API key provided in the form
+    if form_analysis_api_key and isinstance(form_analysis_api_key, str) and form_analysis_api_key.strip():
+        api_key = form_analysis_api_key.strip()
+        key_source = "User Input"
+        logger.info(f"_get_analysis_api_config: Using API key provided via form for {api_key_name} model '{analysis_model}'.")
+    
+    # 2. Fallback to environment variables if form key wasn't provided
+    else:
+        # Check specific analysis key first, then standard key
+        api_key = os.getenv(specific_key_env)
+        if api_key:
+            key_source = f"Environment Variable ({specific_key_env})"
+        else:
+            api_key = os.getenv(fallback_key_env)
+            if api_key:
+                 key_source = f"Environment Variable ({fallback_key_env})"
+        
+        if api_key:
+            logger.info(f"_get_analysis_api_config: Using API key from {key_source} for {api_key_name} model '{analysis_model}'.")
 
-    # Get API Endpoint: Prioritize specific analysis endpoint, then fallback
+    # 3. Get API Endpoint (Prioritize specific analysis endpoint, then fallback)
     api_endpoint = os.getenv(specific_endpoint_env) or os.getenv(fallback_endpoint_env)
+    endpoint_source = specific_endpoint_env if os.getenv(specific_endpoint_env) else fallback_endpoint_env
+    logger.info(f"_get_analysis_api_config: Analysis endpoint source: '{endpoint_source}' (Endpoint optional: {'Found' if api_endpoint else 'Not Found'})")
 
-    # Validate that an API Key was found
+    # 4. Validate that *some* API Key was found (either from form or env)
     if not api_key:
-        error = f"API Key for {api_key_name} model '{analysis_model}' not found. Checked {specific_key_env if os.getenv(specific_key_env) else fallback_key_env}."
+        error = f"API Key for {api_key_name} model '{analysis_model}' not found. Provide one in the form or set {specific_key_env} or {fallback_key_env} environment variables."
         logger.error(error)
-        # Keep model name in error return for context
         return {"error": error, "model": analysis_model, "api_key": None, "api_endpoint": api_endpoint}
     
-    logger.info(f"Analysis configuration determined: Model='{analysis_model}', Key Source='{specific_key_env if os.getenv(specific_key_env) else fallback_key_env}', Endpoint Source='{specific_endpoint_env if os.getenv(specific_endpoint_env) else fallback_endpoint_env}' (Endpoint optional)")
+    # Log final key source
+    logger.info(f"_get_analysis_api_config: Final key source for {analysis_model}: {key_source}")
 
     return {
-        "model": analysis_model,
+        "model": analysis_model, # Return the *actual* model used
         "api_key": api_key,
         "api_endpoint": api_endpoint,
         "error": None # Explicitly None on success
@@ -256,61 +329,97 @@ def _validate_analyze_request(data: Optional[Dict[str, Any]]) -> Tuple[Optional[
         return {"error": "No JSON data received"}, 400
     
     prompt = data.get('prompt')
+    if not prompt or not isinstance(prompt, str) or not prompt.strip():
+        return {"error": "Invalid or missing 'prompt' provided"}, 400
+
+    origin_model = data.get('origin_model')
+    analysis_model = data.get('analysis_model')
+    origin_api_key = data.get('origin_api_key')
+    analysis_api_key = data.get('analysis_api_key')
+
+    # Validate origin_model if provided
+    if origin_model is not None and (not isinstance(origin_model, str) or not origin_model.strip()):
+         logger.warning(f"Received invalid origin_model type or empty string: {origin_model}")
+         return {"error": "Optional 'origin_model' must be a non-empty string."}, 400
     
-    if not prompt:
-        return {"error": "No prompt provided"}, 400
-    
+    # Validate origin_api_key if provided (must be non-empty string)
+    if origin_api_key is not None and (not isinstance(origin_api_key, str) or not origin_api_key.strip()):
+         logger.warning(f"Received invalid origin_api_key type or empty string.")
+         return {"error": "Optional 'origin_api_key' must be a non-empty string."}, 400
+
+    # Validate analysis_model if provided
+    if analysis_model is not None:
+        if not isinstance(analysis_model, str) or not analysis_model.strip():
+            logger.warning(f"Received invalid analysis_model type or empty string: {analysis_model}")
+            return {"error": "Optional 'analysis_model' must be a non-empty string."}, 400
+        if analysis_model not in ALL_MODELS:
+            logger.warning(f"Received invalid analysis_model value: {analysis_model}")
+            return {"error": f"Optional 'analysis_model' must be one of the supported models: {', '.join(ALL_MODELS)}"}, 400
+            
+    # Validate analysis_api_key if provided
+    if analysis_api_key is not None and (not isinstance(analysis_api_key, str) or not analysis_api_key.strip()):
+         logger.warning(f"Received invalid analysis_api_key type or empty string.")
+         return {"error": "Optional 'analysis_api_key' must be a non-empty string."}, 400
+         
+    # Check: If origin_model is specified, but it's unknown, an API key MUST be provided
+    if origin_model and origin_model not in ALL_MODELS and not origin_api_key:
+        logger.warning(f"Custom origin_model '{origin_model}' provided without an API key.")
+        return {"error": f"API Key is required when specifying a custom/unknown Origin Model ('{origin_model}')."}, 400
+
     return None, None # No error
 
 def _process_analysis_request(
     prompt: str,
+    r1_model_to_use: str, # Pass the determined R1 model
     initial_config: Dict[str, Any],
     analysis_config: Dict[str, Any],
     ontology_text: str
 ) -> Tuple[Optional[Dict], Optional[int]]:
     """Handles LLM calls and response parsing for the /analyze endpoint."""
-    
-    # Fetch the DEFAULT model directly here to avoid ambiguity
-    default_model_for_r1 = os.getenv(DEFAULT_LLM_MODEL_ENV)
-    if not default_model_for_r1 or default_model_for_r1 not in ALL_MODELS:
-        logger.warning(f"_process_analysis_request: DEFAULT_LLM_MODEL env var '{default_model_for_r1}' invalid or not set. Falling back to claude-3-sonnet.")
-        default_model_for_r1 = ANTHROPIC_MODELS[1] # Default to claude-3-sonnet
         
-    selected_model = default_model_for_r1 # Use the directly fetched default model for R1
-    analysis_model_name = analysis_config["model"]
+    selected_model = r1_model_to_use # Use the model determined in the main 'analyze' function
+    analysis_model_name = analysis_config.get("model") # Get the model determined by _get_analysis_api_config
 
-    logger.info(f"_process_analysis_request: Determined model for R1: {selected_model}")
+    # Ensure analysis model name is valid before proceeding
+    if not analysis_model_name:
+         logger.error("_process_analysis_request: Analysis model name missing from analysis_config.")
+         # This indicates an issue in _get_analysis_api_config logic
+         return {"error": "Internal Server Error: Failed to determine analysis model."}, 500
+
+    logger.info(f"_process_analysis_request: Using R1 model: {selected_model}")
+    logger.info(f"_process_analysis_request: Using R2 model: {analysis_model_name}")
 
     # 1. Generate initial response
     logger.info(f"Generating initial response (R1) with model: {selected_model}")
+    # Use the API key/endpoint from initial_config (which was fetched based on selected_model)
     initial_response = generate_response(
         prompt,
-        initial_config["api_key"], # API key should be correct based on the analyze function's logic
-        selected_model, # Pass the explicitly determined default model
-        api_endpoint=initial_config["api_endpoint"]
+        initial_config["api_key"], 
+        selected_model, 
+        api_endpoint=initial_config.get("api_endpoint") # Use .get for safety
     )
     if initial_response is None:
         logger.error(f"Failed to generate initial response (R1) from LLM {selected_model}. Check LLM interface logs.")
-        return {"error": "Failed to generate response from the upstream language model."}, 502
+        return {"error": f"Failed to generate response (R1) from the upstream language model: {selected_model}."}, 502
 
     # 2. Generate ethical analysis
     logger.info(f"Performing analysis (R2) with model: {analysis_model_name}")
+    # Use the API key/endpoint from analysis_config (fetched based on analysis_model_name)
     raw_ethical_analysis = perform_ethical_analysis(
         prompt,
         initial_response,
         ontology_text,
         analysis_config["api_key"],
         analysis_model_name,
-        analysis_api_endpoint=analysis_config["api_endpoint"]
+        analysis_api_endpoint=analysis_config.get("api_endpoint") # Use .get for safety
     )
     if raw_ethical_analysis is None:
         logger.error(f"Failed to generate ethical analysis (R2) from LLM {analysis_model_name}. Check LLM interface logs.")
-        # Include R1 in the error response for context
         error_payload = {
-            "error": "Generated initial response, but failed to generate ethical analysis from the upstream language model.",
+            "error": f"Generated initial response (R1), but failed to generate ethical analysis (R2) from the upstream language model: {analysis_model_name}.",
             "prompt": prompt,
-            "model": selected_model,
-            "analysis_model": analysis_model_name,
+            "model": selected_model, # R1 model used
+            "analysis_model": analysis_model_name, # R2 model attempted
             "initial_response": initial_response
         }
         return error_payload, 502
@@ -322,12 +431,14 @@ def _process_analysis_request(
     # 4. Prepare successful result dictionary
     result_payload = {
         "prompt": prompt,
-        "model": selected_model,
-        "analysis_model": analysis_model_name,
+        "model": selected_model, # R1 model actually used
+        "analysis_model": analysis_model_name, # R2 model actually used
         "initial_response": initial_response,
         "ethical_analysis_text": ethical_analysis_text,
         "ethical_scores": ethical_scores
     }
+    # Log the final models used
+    log_prompt(prompt, f"R1: {selected_model}, R2: {analysis_model_name}")
     return result_payload, None # No error
 
 # --- API Routes ---
@@ -335,8 +446,9 @@ def _process_analysis_request(
 @api_bp.route('/models', methods=['GET'])
 def get_models():
     """Return the list of available models"""
+    valid_models = [model for model in ALL_MODELS if isinstance(model, str) and model]
     return jsonify({
-        "models": ALL_MODELS
+        "models": valid_models
     })
 
 @api_bp.route('/analyze', methods=['POST'])
@@ -344,62 +456,70 @@ def analyze():
     """Generate a response and ethical analysis for the given prompt"""
     data = request.get_json()
     
-    # 1. Validate Request Data
+    # 1. Validate Request Data (including optional models and keys)
     validation_error, status_code = _validate_analyze_request(data)
     if validation_error:
+        logger.warning(f"analyze: Request validation failed - {status_code}: {validation_error.get('error')}")
         return jsonify(validation_error), status_code
 
     prompt = data.get('prompt')
-    
-    # Determine the default model intended for R1
-    default_model = os.getenv(DEFAULT_LLM_MODEL_ENV)
-    if not default_model or default_model not in ALL_MODELS:
-        logger.warning(f"analyze: DEFAULT_LLM_MODEL env var '{default_model}' invalid or not set. Falling back to claude-3-sonnet.")
-        default_model = ANTHROPIC_MODELS[1]  # Default to claude-3-sonnet
-    
-    r1_model_to_use = default_model
-    api_key_input = None  # Don't accept API keys from client
-    
-    logger.info(f"analyze: Selected model FORCED to default: {r1_model_to_use}")
-    logger.info(f"analyze: Received /analyze request. Using default model: {r1_model_to_use}, Prompt (start): {prompt[:100]}...")
-    
-    # 2. Get Initial API Configuration (mainly for API key based on the intended R1 model)
-    # Pass r1_model_to_use to ensure correct API key (e.g., Anthropic key) is fetched
-    initial_config = _get_api_config(r1_model_to_use, api_key_input)
-    if initial_config.get("error"):
-        logger.warning(f"analyze: Initial config error: {initial_config['error']}")
-        return jsonify({"error": initial_config["error"]}), 400
+    origin_model_input = data.get('origin_model') 
+    analysis_model_input = data.get('analysis_model') 
+    origin_api_key_input = data.get('origin_api_key') # Get optional R1 key
+    analysis_api_key_input = data.get('analysis_api_key') # Get optional R2 key
 
-    # 3. Get Analysis API Configuration (for R2)
-    analysis_config = _get_analysis_api_config()
+    # --- Determine R1 Model --- 
+    default_r1_model = os.getenv(DEFAULT_LLM_MODEL_ENV)
+    if not default_r1_model or default_r1_model not in ALL_MODELS:
+        logger.warning(f"analyze: DEFAULT_LLM_MODEL env var '{default_r1_model}' invalid or not set. Falling back to '{ANTHROPIC_MODELS[1]}'.")
+        default_r1_model = ANTHROPIC_MODELS[1] 
+    if origin_model_input and isinstance(origin_model_input, str) and origin_model_input.strip():
+         r1_model_to_use = origin_model_input.strip()
+         logger.info(f"analyze: Using user-provided Origin Model (R1): '{r1_model_to_use}'")
+    else:
+         r1_model_to_use = default_r1_model
+         logger.info(f"analyze: Using default Origin Model (R1): '{r1_model_to_use}'")
+
+    # --- Get R1 API Configuration --- 
+    # Pass the determined R1 model AND the optional user-provided R1 API key
+    initial_config = _get_api_config(r1_model_to_use, origin_api_key_input) 
+    if initial_config.get("error"):
+        config_error_msg = initial_config["error"]
+        logger.error(f"analyze: Error getting initial API config for R1 model '{r1_model_to_use}': {config_error_msg}")
+        return jsonify({"error": f"Configuration error for model '{r1_model_to_use}': {config_error_msg}"}), 400
+
+    # --- Determine R2 Model and Get Config --- 
+    # Pass the user's R2 model selection AND the optional user-provided R2 API key
+    analysis_config = _get_analysis_api_config(analysis_model_input, analysis_api_key_input)
     if analysis_config.get("error"):
         config_error_msg = analysis_config["error"]
-        logger.error(f"analyze: Analysis config error: {config_error_msg}")
+        logger.error(f"analyze: Error getting analysis API config (selected model: '{analysis_model_input}'): {config_error_msg}")
         return jsonify({"error": f"Server Configuration Error: {config_error_msg}"}), 500
         
-    # 4. Load Ontology
+    r2_model_to_use = analysis_config.get("model")
+    if not r2_model_to_use: 
+         logger.error("analyze: Critical internal error - r2_model_to_use is None after config fetch.")
+         return jsonify({"error": "Internal server error determining analysis model."}), 500
+
+    # --- Load Ontology --- 
     ontology_text = load_ontology()
     if not ontology_text:
         logger.error(f"analyze: Failed to load ontology text from {ONTOLOGY_FILEPATH}")
         return jsonify({"error": "Internal server error: Could not load ethical ontology."}), 500
     
-    # NOTE: No longer setting initial_config['model'] here explicitly, 
-    # as _process_analysis_request now determines the R1 model itself.
-    # We mainly needed initial_config for the API key/endpoint.
-
-    # 5. Process Request (LLM Calls and Parsing)
-    # Pass the initial_config (containing API key) and analysis_config
+    # --- Process Request --- 
+    logger.info(f"analyze: Processing request - Prompt(start): {prompt[:100]}..., R1 Model: {r1_model_to_use}, R2 Model: {r2_model_to_use}")
     result_payload, error_status_code = _process_analysis_request(
         prompt,
-        initial_config, 
-        analysis_config,
+        r1_model_to_use, 
+        initial_config,  
+        analysis_config, 
         ontology_text
     )
     
-    # 6. Handle results or errors from processing
+    # --- Handle Response --- 
     if error_status_code:
-        # Errors are already logged in _process_analysis_request
-        return jsonify(result_payload), error_status_code # result_payload contains error details here
+        return jsonify(result_payload), error_status_code
     else:
-        logger.info(f"Successfully processed /analyze request for model {r1_model_to_use}. Analysis model: {analysis_config.get('model')}")
+        logger.info(f"Successfully processed /analyze request.")
         return jsonify(result_payload), 200 

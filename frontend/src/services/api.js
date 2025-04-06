@@ -17,18 +17,43 @@ export const ethicalReviewApi = {
   getModels: async () => {
     try {
       const response = await apiClient.get('/models');
-      return response.data.models;
+      // Ensure we return an array, even if the API response is unexpected
+      return Array.isArray(response.data.models) ? response.data.models : [];
     } catch (error) {
       console.error('Error fetching models:', error);
-      throw error;
+      // Return empty array on error so the UI doesn't break
+      return []; 
+      // Optionally re-throw or handle more gracefully
+      // throw error;
     }
   },
   
-  // Submit a prompt for analysis
-  analyzePrompt: async (prompt, model, apiKey = null) => {
+  // MODIFIED: Accept optional API keys
+  analyzePrompt: async (prompt, 
+                        originModel = null, 
+                        analysisModel = null, 
+                        originApiKey = null,
+                        analysisApiKey = null
+                      ) => {
     try {
-      // Only include prompt in the payload, letting the server use defaults
-      const payload = { prompt };
+      const payload = { 
+        prompt: prompt 
+      };
+      // Conditionally add optional fields if they are valid strings
+      if (originModel && typeof originModel === 'string' && originModel.trim()) {
+        payload.origin_model = originModel.trim();
+      }
+      if (analysisModel && typeof analysisModel === 'string' && analysisModel.trim()) {
+        payload.analysis_model = analysisModel.trim();
+      }
+      if (originApiKey && typeof originApiKey === 'string' && originApiKey.trim()) {
+        payload.origin_api_key = originApiKey.trim();
+      }
+      if (analysisApiKey && typeof analysisApiKey === 'string' && analysisApiKey.trim()) {
+        payload.analysis_api_key = analysisApiKey.trim();
+      }
+      
+      console.log("Sending payload to /analyze:", payload); 
       
       const response = await apiClient.post('/analyze', payload);
       return response.data;
@@ -37,7 +62,7 @@ export const ethicalReviewApi = {
       if (error.response && error.response.data && error.response.data.error) {
         throw new Error(error.response.data.error);
       }
-      throw error;
+      throw new Error('An unknown error occurred while analyzing the prompt.');
     }
   }
 };

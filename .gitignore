@@ -39,4 +39,7 @@ context/prompts.txt
 
 # OS generated files
 .DS_Store
-Thumbs.db 
+Thumbs.db
+
+# Deployment Scripts
+deploy_to_acr.ps1 

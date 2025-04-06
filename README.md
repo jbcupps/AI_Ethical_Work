@@ -80,14 +80,14 @@ TriangleEthic/                      # Project Root
 
     ```dotenv
     # --- General API Keys (Used if specific ANALYSIS keys aren't set) ---
-    OPENAI_API_KEY=
-    GEMINI_API_KEY=
-    ANTHROPIC_API_KEY=
+    OPENAI_API_KEY="YOUR_OPENAI_API_KEY_HERE"
+    GEMINI_API_KEY="YOUR_GEMINI_API_KEY_HERE"
+    ANTHROPIC_API_KEY="YOUR_ANTHROPIC_API_KEY_HERE"
 
     # --- Specific Keys for ANALYSIS LLM (Optional - overrides general keys) ---
-    ANALYSIS_OPENAI_API_KEY=
-    ANALYSIS_GEMINI_API_KEY=
-    ANALYSIS_ANTHROPIC_API_KEY=
+    # ANALYSIS_OPENAI_API_KEY=
+    # ANALYSIS_GEMINI_API_KEY=
+    # ANALYSIS_ANTHROPIC_API_KEY=
 
     # --- Optional API Endpoints (Uncomment and set if using non-standard endpoints) ---
     # OPENAI_API_ENDPOINT=
@@ -97,15 +97,18 @@ TriangleEthic/                      # Project Root
     # ANALYSIS_GEMINI_API_ENDPOINT=
     # ANALYSIS_ANTHROPIC_API_ENDPOINT=
 
-    # --- Default Model Selections ---
-    # Choose a default model for initial response (R1) from the available lists
-    DEFAULT_LLM_MODEL=claude-3-sonnet-20240229 # Example: "gpt-4o", "gemini-1.5-pro-latest"
+    # --- Default Model Selections --- 
+    # Set a default model for the initial response (R1). 
+    # If unset, the backend might default to the first available model found.
+    DEFAULT_LLM_MODEL="claude-3-sonnet-20240229" # Example: "gpt-4o", "gemini-1.5-pro-latest"
 
-    # Choose a default model for ethical analysis (R2) from the available lists
-    ANALYSIS_LLM_MODEL=claude-3-sonnet-20240229 # Example
+    # Set a default model for the ethical analysis response (R2).
+    # This is REQUIRED if not provided dynamically by the frontend.
+    ANALYSIS_LLM_MODEL="claude-3-sonnet-20240229" # Example
 
-    # --- Required for Anthropic SDK ---
-    ANTHROPIC_API_VERSION=2023-06-01
+    # --- Optional Anthropic SDK Config --- 
+    # Set the Anthropic API version if needed (defaults to 2023-06-01)
+    # ANTHROPIC_API_VERSION="2023-06-01"
     ```
 
     **Important:** Ensure the `.env` file is listed in your `.gitignore` to avoid committing sensitive API keys.
@@ -181,7 +184,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
       ```powershell
       Copy-Item .env.example .env
       ```
-    *   **Important:** Open the newly created `.env` file and replace the placeholder values (e.g., `"YOUR_GEMINI_API_KEY_HERE"`, `"YOUR_DEFAULT_ANALYSIS_MODEL_HERE"`) with your actual API keys and desired default model configurations. Set `DEFAULT_LLM_MODEL` for the default R1 model and `ANALYSIS_LLM_MODEL` for the default R2 model (R2 is required).
+    *   **Important:** Open the newly created `.env` file and replace the placeholder values with your actual API keys. You **must** set a valid model name for `ANALYSIS_LLM_MODEL` (e.g., `"claude-3-sonnet-20240229"`). You can optionally set `DEFAULT_LLM_MODEL` for the default R1 model.
     *   The `.env` file is listed in `.gitignore` and should **never** be committed to the repository.
 
 4.  **Build and Run Containers:**

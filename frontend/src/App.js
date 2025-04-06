@@ -10,12 +10,19 @@ function App() {
   const [results, setResults] = useState({
     prompt: '',
     initialResponse: '',
-    ethicalAnalysis: ''
+    ethicalAnalysisText: '',
+    ethicalScores: null
   });
 
   const handleSubmit = async (prompt, model, apiKey) => {
     setLoading(true);
     setError(null);
+    setResults({
+      prompt: '',
+      initialResponse: '',
+      ethicalAnalysisText: '',
+      ethicalScores: null
+    });
     
     try {
       const response = await ethicalReviewApi.analyzePrompt(prompt, model, apiKey);
@@ -23,7 +30,8 @@ function App() {
       setResults({
         prompt: response.prompt,
         initialResponse: response.initial_response,
-        ethicalAnalysis: response.ethical_analysis
+        ethicalAnalysisText: response.ethical_analysis_text,
+        ethicalScores: response.ethical_scores
       });
     } catch (err) {
       setError(err.message || 'An error occurred during analysis');
@@ -54,7 +62,8 @@ function App() {
         <Results 
           prompt={results.prompt}
           initialResponse={results.initialResponse}
-          ethicalAnalysis={results.ethicalAnalysis}
+          ethicalAnalysisText={results.ethicalAnalysisText}
+          ethicalScores={results.ethicalScores}
         />
       </div>
     </div>

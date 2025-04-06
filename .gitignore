@@ -32,6 +32,7 @@ env/
 # Avoid committing built images or containers if stored locally
 # docker-compose logs often end up here if not configured otherwise
 *.log
+context/
 
 # OS generated files
 .DS_Store

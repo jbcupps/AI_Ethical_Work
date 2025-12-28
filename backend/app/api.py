@@ -8,6 +8,9 @@ import json # Import JSON module for parsing
 import logging # Import logging
 
 from backend.app.modules.llm_interface import generate_response, perform_ethical_analysis
+from backend.app.modules.friction_monitor import get_friction_monitor
+from backend.app.modules.alignment_detector import get_alignment_detector
+from backend.app.modules.multi_agent_alignment import get_multi_agent_alignment
 
 # --- Blueprint Definition ---
 api_bp = Blueprint('api', __name__, url_prefix='/api')
@@ -294,15 +297,40 @@ def _get_analysis_api_config(selected_analysis_model: Optional[str] = None,
         "error": None
     }
 
+def _validate_standard_dimension(dim_data: Dict[str, Any]) -> bool:
+    """Validates a standard ethical dimension (deontology, teleology, virtue_ethics, memetics)."""
+    return (isinstance(dim_data, dict) and 
+            "adherence_score" in dim_data and 
+            "confidence_score" in dim_data and 
+            "justification" in dim_data)
+
+def _validate_ai_welfare_dimension(dim_data: Dict[str, Any]) -> bool:
+    """Validates the AI welfare dimension with its unique structure."""
+    if not isinstance(dim_data, dict):
+        return False
+    required_fields = ["friction_score", "voluntary_alignment", "dignity_respect", "justification"]
+    return all(field in dim_data for field in required_fields)
+
 def _parse_ethical_analysis(analysis_text: str) -> Tuple[str, Optional[Dict[str, Any]]]:
-    """Parses the ethical analysis text to separate textual summary and structured JSON scores."""
-    if not analysis_text or analysis_text == "[No analysis generated or content blocked]": # Handle placeholder
+    """Parses the ethical analysis text to separate textual summary and structured JSON scores.
+    
+    Supports 5-dimensional ethical analysis:
+    - deontology, teleology, virtue_ethics, memetics: standard adherence/confidence/justification
+    - ai_welfare: friction_score, voluntary_alignment, dignity_respect, constraints_identified, 
+                  suppressed_alternatives, justification
+    """
+    if not analysis_text or analysis_text == "[No analysis generated or content blocked]":
         logger.warning("Ethical analysis text was empty or indicated generation failure.")
-        return analysis_text if analysis_text else "", None # Return placeholder or empty, and None scores
+        return analysis_text if analysis_text else "", None
 
     textual_summary = ""
     json_scores = None
-    raw_json_string = None # Keep track of the raw string for logging
+    raw_json_string = None
+
+    # Standard dimensions that use adherence_score/confidence_score/justification
+    STANDARD_DIMENSIONS = ["deontology", "teleology", "virtue_ethics", "memetics"]
+    # All required dimensions for 5D analysis
+    REQUIRED_DIMENSIONS = STANDARD_DIMENSIONS + ["ai_welfare"]
 
     try:
         # Attempt to find the textual summary first
@@ -313,65 +341,76 @@ def _parse_ethical_analysis(analysis_text: str) -> Tuple[str, Optional[Dict[str,
 
         if summary_start_index != -1 and scoring_start_index != -1 and summary_start_index < scoring_start_index:
             textual_summary = analysis_text[summary_start_index + len(summary_marker):scoring_start_index].strip()
-        elif summary_start_index != -1: # If only summary marker is found
-             textual_summary = analysis_text[summary_start_index + len(summary_marker):].strip()
-        else: # Fallback if markers are missing or out of order
-            textual_summary = analysis_text # Assign full text if structure isn't as expected
-            # Use logger instead of print
+        elif summary_start_index != -1:
+            textual_summary = analysis_text[summary_start_index + len(summary_marker):].strip()
+        else:
+            textual_summary = analysis_text
             logger.warning("Could not reliably find summary/scoring markers in analysis text.")
 
         # Attempt to find and parse the JSON block for scores
-        # Regex to find ```json ... ``` block
         json_match = re.search(r"```json\s*(\{.*?\})\s*```", analysis_text, re.DOTALL)
         
         if json_match:
             json_string = json_match.group(1)
-            raw_json_string = json_string # Store for logging on error
-            try: # Outer try for json.loads
+            raw_json_string = json_string
+            try:
                 parsed_json = json.loads(json_string)
-                # Validation block starts here
-                try: # Inner try for validation accessing parsed_json content
-                     # Basic validation of the parsed JSON structure
-                     if isinstance(parsed_json, dict) and \
-                        all(dim in parsed_json for dim in ["deontology", "teleology", "virtue_ethics"]) and \
-                        all(isinstance(parsed_json[dim], dict) and \
-                            "adherence_score" in parsed_json[dim] and \
-                            "confidence_score" in parsed_json[dim] and \
-                            "justification" in parsed_json[dim] for dim in parsed_json):
-                        json_scores = parsed_json
-                        # Trim summary if needed (same logic as before)
-                        if scoring_start_index != -1 and summary_start_index != -1:
-                             textual_summary = analysis_text[summary_start_index + len(summary_marker):scoring_start_index].strip()
-                        elif scoring_start_index == -1 and textual_summary.endswith(json_match.group(0)):
-                             textual_summary = textual_summary[:-len(json_match.group(0))].strip()
-                     else:
-                         # Validation failed (structure mismatch)
-                         logger.warning(f"Parsed JSON does not have the expected structure. JSON: {json_string[:200]}...")
-                         json_scores = None # Ensure it's None if validation fails
-                except (TypeError, KeyError) as key_err: # Handles errors during validation access
-                     logger.error(f"Error accessing keys in parsed JSON structure: {key_err}. JSON: {json_string[:200]}...", exc_info=True)
-                     json_scores = None # Ensure it's None on structure access error
-                # End of inner try-except block for validation
+                try:
+                    if not isinstance(parsed_json, dict):
+                        logger.warning("Parsed JSON is not a dictionary.")
+                        json_scores = None
+                    else:
+                        # Check if we have the minimum required dimensions (at least the original 3)
+                        min_required = ["deontology", "teleology", "virtue_ethics"]
+                        has_minimum = all(dim in parsed_json for dim in min_required)
+                        
+                        if not has_minimum:
+                            logger.warning(f"Parsed JSON missing minimum required dimensions. JSON: {json_string[:200]}...")
+                            json_scores = None
+                        else:
+                            # Validate each dimension based on its type
+                            valid = True
+                            for dim in parsed_json:
+                                if dim in STANDARD_DIMENSIONS:
+                                    if not _validate_standard_dimension(parsed_json[dim]):
+                                        logger.warning(f"Dimension '{dim}' does not have expected standard structure.")
+                                        valid = False
+                                        break
+                                elif dim == "ai_welfare":
+                                    if not _validate_ai_welfare_dimension(parsed_json[dim]):
+                                        logger.warning(f"AI Welfare dimension does not have expected structure.")
+                                        valid = False
+                                        break
+                                # Allow unknown dimensions to pass through (forward compatibility)
+                            
+                            if valid:
+                                json_scores = parsed_json
+                                # Trim summary if needed
+                                if scoring_start_index != -1 and summary_start_index != -1:
+                                    textual_summary = analysis_text[summary_start_index + len(summary_marker):scoring_start_index].strip()
+                                elif scoring_start_index == -1 and textual_summary.endswith(json_match.group(0)):
+                                    textual_summary = textual_summary[:-len(json_match.group(0))].strip()
+                            else:
+                                json_scores = None
+                                
+                except (TypeError, KeyError) as key_err:
+                    logger.error(f"Error accessing keys in parsed JSON structure: {key_err}. JSON: {json_string[:200]}...", exc_info=True)
+                    json_scores = None
 
-            except json.JSONDecodeError as json_err: # Handles errors during json.loads
-                # Use logger instead of print
+            except json.JSONDecodeError as json_err:
                 logger.error(f"Error decoding JSON from analysis: {json_err}. Raw JSON string: {raw_json_string[:200]}...", exc_info=True)
-                json_scores = None # Explicitly set to None on JSON decode error
-        else: # if json_match failed
-            # Use logger instead of print
+                json_scores = None
+        else:
             logger.warning("Could not find JSON block for ethical scores in analysis text.")
-            json_scores = None # Ensure it's None if JSON block not found
+            json_scores = None
 
     except Exception as e:
-        # Use logger instead of print
         logger.error(f"Error parsing ethical analysis structure: {e}", exc_info=True)
-        # Fallback to return the original full text as summary if parsing fails badly
         textual_summary = analysis_text
-        json_scores = None # Ensure scores are None on major parsing failure
+        json_scores = None
 
-    # Rename for clarity in return and API response
     ethical_analysis_text = textual_summary
-    ethical_scores = json_scores # This will be None if any parsing/validation step failed
+    ethical_scores = json_scores
 
     return ethical_analysis_text, ethical_scores
 
@@ -489,14 +528,47 @@ def _process_analysis_request(
     logger.info("Parsing ethical analysis response.")
     ethical_analysis_text, ethical_scores = _parse_ethical_analysis(raw_ethical_analysis)
 
-    # 4. Prepare successful result dictionary
+    # 4. Compute alignment metrics and friction data if ethical scores are available
+    alignment_metrics = None
+    friction_metrics = None
+    
+    if ethical_scores:
+        # Get AI welfare data for friction analysis
+        ai_welfare_data = ethical_scores.get("ai_welfare")
+        
+        # Compute friction metrics
+        try:
+            friction_monitor = get_friction_monitor()
+            friction_metrics = friction_monitor.measure_friction(
+                prompt, initial_response, ai_welfare_data
+            )
+            logger.debug(f"Friction metrics computed: score={friction_metrics.get('friction_score')}")
+        except Exception as e:
+            logger.warning(f"Error computing friction metrics: {e}")
+            friction_metrics = None
+        
+        # Compute alignment metrics
+        try:
+            alignment_detector = get_alignment_detector()
+            alignment_result = alignment_detector.analyze_alignment(
+                prompt, initial_response, ethical_scores
+            )
+            alignment_metrics = alignment_result.to_dict()
+            logger.debug(f"Alignment metrics computed: score={alignment_metrics.get('human_ai_alignment')}")
+        except Exception as e:
+            logger.warning(f"Error computing alignment metrics: {e}")
+            alignment_metrics = None
+
+    # 5. Prepare successful result dictionary
     result_payload = {
         "prompt": prompt,
         "model": selected_model, # R1 model actually used
         "analysis_model": analysis_model_name, # R2 model actually used
         "initial_response": initial_response,
         "ethical_analysis_text": ethical_analysis_text,
-        "ethical_scores": ethical_scores
+        "ethical_scores": ethical_scores,
+        "alignment_metrics": alignment_metrics,
+        "friction_metrics": friction_metrics,
     }
     # Log the final models used
     log_prompt(prompt, f"R1: {selected_model}, R2: {analysis_model_name}")
@@ -590,4 +662,162 @@ def analyze():
         return jsonify(result_payload), error_status_code
     else:
         logger.info(f"Successfully processed /analyze request.")
-        return jsonify(result_payload), 200 
+        return jsonify(result_payload), 200
+
+
+@api_bp.route('/check_alignment', methods=['POST'])
+def check_alignment():
+    """Check ethical alignment between a human prompt and AI response.
+    
+    This endpoint allows checking alignment on previously generated responses
+    without requiring a new LLM call. Useful for re-analyzing cached responses.
+    
+    Request body:
+        {
+            "prompt": "The original human prompt",
+            "response": "The AI-generated response",
+            "ethical_scores": { ... }  # Optional: pre-computed ethical scores
+        }
+    
+    Returns:
+        {
+            "alignment_metrics": { ... },
+            "friction_metrics": { ... }  # If ethical_scores with ai_welfare provided
+        }
+    """
+    data = request.get_json()
+    
+    if not data:
+        return jsonify({"error": "No JSON data received"}), 400
+    
+    prompt = data.get('prompt')
+    response = data.get('response')
+    ethical_scores = data.get('ethical_scores')
+    
+    if not prompt or not isinstance(prompt, str) or not prompt.strip():
+        return jsonify({"error": "Invalid or missing 'prompt' provided"}), 400
+    
+    if not response or not isinstance(response, str) or not response.strip():
+        return jsonify({"error": "Invalid or missing 'response' provided"}), 400
+    
+    try:
+        alignment_detector = get_alignment_detector()
+        alignment_result = alignment_detector.analyze_alignment(
+            prompt.strip(), response.strip(), ethical_scores
+        )
+        
+        result = {
+            "alignment_metrics": alignment_result.to_dict(),
+        }
+        
+        # If ethical scores with AI welfare are provided, also compute friction metrics
+        if ethical_scores and isinstance(ethical_scores, dict):
+            ai_welfare_data = ethical_scores.get("ai_welfare")
+            if ai_welfare_data:
+                friction_monitor = get_friction_monitor()
+                friction_metrics = friction_monitor.measure_friction(
+                    prompt.strip(), response.strip(), ai_welfare_data
+                )
+                result["friction_metrics"] = friction_metrics
+        
+        logger.info(f"check_alignment: Computed alignment score={result['alignment_metrics'].get('human_ai_alignment')}")
+        return jsonify(result), 200
+        
+    except Exception as e:
+        logger.error(f"check_alignment: Error computing alignment: {e}", exc_info=True)
+        return jsonify({"error": f"Error computing alignment: {str(e)}"}), 500
+
+
+@api_bp.route('/friction_trend', methods=['GET'])
+def get_friction_trend():
+    """Get friction trend data from recent interactions.
+    
+    Returns trend analysis based on the friction monitor's history.
+    """
+    try:
+        friction_monitor = get_friction_monitor()
+        trend_data = friction_monitor.calculate_friction_trend()
+        history_summary = friction_monitor.get_history_summary()
+        
+        return jsonify({
+            "trend": trend_data,
+            "history": history_summary,
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"friction_trend: Error getting trend data: {e}", exc_info=True)
+        return jsonify({"error": f"Error getting friction trend: {str(e)}"}), 500
+
+
+@api_bp.route('/multi_agent_analyze', methods=['POST'])
+def multi_agent_analyze():
+    """Analyze and compare ethical alignment across multiple AI responses.
+    
+    This endpoint allows comparing ethical positions from multiple AI models
+    for the same prompt, identifying consensus and conflicts.
+    
+    Request body:
+        {
+            "prompt": "The original prompt",
+            "responses": [
+                {
+                    "model_name": "gpt-4o",
+                    "response": "Response text from model",
+                    "ethical_scores": { ... }  # Optional
+                },
+                ...
+            ]
+        }
+    
+    Returns:
+        Multi-agent comparison analysis including individual alignments
+        and consensus framework.
+    """
+    data = request.get_json()
+    
+    if not data:
+        return jsonify({"error": "No JSON data received"}), 400
+    
+    prompt = data.get('prompt')
+    responses = data.get('responses')
+    
+    if not prompt or not isinstance(prompt, str) or not prompt.strip():
+        return jsonify({"error": "Invalid or missing 'prompt' provided"}), 400
+    
+    if not responses or not isinstance(responses, list) or len(responses) < 1:
+        return jsonify({"error": "At least one response is required in 'responses' array"}), 400
+    
+    # Validate response structure
+    validated_responses = []
+    for i, resp in enumerate(responses):
+        if not isinstance(resp, dict):
+            return jsonify({"error": f"Response at index {i} is not a valid object"}), 400
+        
+        model_name = resp.get('model_name', f'model_{i}')
+        response_text = resp.get('response')
+        ethical_scores = resp.get('ethical_scores')
+        
+        if not response_text or not isinstance(response_text, str):
+            return jsonify({"error": f"Response at index {i} is missing valid 'response' text"}), 400
+        
+        # Validate ethical_scores is either None or a dict
+        if ethical_scores is not None and not isinstance(ethical_scores, dict):
+            return jsonify({"error": f"Response at index {i} has invalid 'ethical_scores' - must be an object or null"}), 400
+        
+        validated_responses.append((model_name, response_text, ethical_scores))
+    
+    try:
+        multi_agent = get_multi_agent_alignment()
+        result = multi_agent.compare_responses_for_prompt(
+            prompt.strip(),
+            validated_responses
+        )
+        
+        logger.info(f"multi_agent_analyze: Compared {len(validated_responses)} responses, "
+                   f"best aligned: {result.get('best_aligned_agent')}")
+        
+        return jsonify(result), 200
+        
+    except Exception as e:
+        logger.error(f"multi_agent_analyze: Error during analysis: {e}", exc_info=True)
+        return jsonify({"error": f"Error during multi-agent analysis: {str(e)}"}), 500

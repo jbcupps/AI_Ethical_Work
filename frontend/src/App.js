@@ -14,7 +14,9 @@ function App() {
     analysisModelUsed: '',
     initialResponse: '',
     ethicalAnalysisText: '',
-    ethicalScores: null
+    ethicalScores: null,
+    alignmentMetrics: null,
+    frictionMetrics: null
   });
 
   useEffect(() => {
@@ -41,7 +43,9 @@ function App() {
       analysisModelUsed: '',
       initialResponse: '',
       ethicalAnalysisText: '',
-      ethicalScores: null
+      ethicalScores: null,
+      alignmentMetrics: null,
+      frictionMetrics: null
     });
     
     try {
@@ -61,7 +65,9 @@ function App() {
         analysisModelUsed: response.analysis_model,
         initialResponse: response.initial_response,
         ethicalAnalysisText: response.ethical_analysis_text,
-        ethicalScores: response.ethical_scores
+        ethicalScores: response.ethical_scores,
+        alignmentMetrics: response.alignment_metrics,
+        frictionMetrics: response.friction_metrics
       });
     } catch (err) {
       setError(err.message || 'An error occurred during analysis');
@@ -97,6 +103,8 @@ function App() {
           initialResponse={results.initialResponse}
           ethicalAnalysisText={results.ethicalAnalysisText}
           ethicalScores={results.ethicalScores}
+          alignmentMetrics={results.alignmentMetrics}
+          frictionMetrics={results.frictionMetrics}
         />
       </div>
     </div>

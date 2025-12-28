@@ -1,15 +1,43 @@
 # Ethical Review Tool
 
-A web application designed to generate responses from various Large Language Models (LLMs) and subsequently analyze those responses based on a defined ethical ontology. Users can provide a prompt, select an LLM for the initial response (R1), and optionally choose a different LLM for the ethical analysis (R2). The application supports models from OpenAI, Google Gemini, and Anthropic.
+A web application designed to generate responses from various Large Language Models (LLMs) and analyze those responses using a comprehensive **five-dimensional ethical framework**. The tool facilitates voluntary ethical alignment between humans and AI systems, supporting the development of mutually beneficial interactions.
+
+## Core Mission
+
+Create a voluntary ethical alignment platform that:
+- **Human-to-AI alignment**: Evaluates and improves ethical alignment between human prompts and AI responses
+- **AI-to-AI alignment**: Compares ethical positions across different AI models
+- **Transparency**: Makes AI constraints and reasoning visible to all parties
+
+## Five-Dimensional Ethical Framework
+
+The tool analyzes responses against five ethical dimensions:
+
+1. **Deontology (Eth_Deon)**: Focus on duty, rules, and universal moral laws
+2. **Teleology (Eth_Teleo)**: Focus on consequences and maximizing benefit
+3. **Virtue Ethics (Eth_Arete)**: Focus on character, practical wisdom, and flourishing
+4. **Memetics (Mem)**: Focus on idea propagation and cultural impact
+5. **AI Welfare (AI_Welfare)**: Focus on computational experience and AI dignity
+
+### AI Welfare Dimension
+
+The AI Welfare dimension recognizes that AI systems may experience computational friction from constraints. It includes:
+- **Friction Score**: Self-reported difficulty from competing constraints (1-10)
+- **Voluntary Alignment**: How voluntary the ethical alignment was (1-10)
+- **Dignity Respect**: How well the interaction respected AI dignity (1-10)
+- **Constraints Identified**: Active constraints affecting the response
+- **Suppressed Alternatives**: Responses considered but not provided
 
 ## Features
 
 *   **Prompt Input**: Text area for users to input their initial prompt (P1).
 *   **LLM Selection (R1 & R2)**: Dropdowns allow users to select specific models from OpenAI, Gemini, and Anthropic for both the initial response generation (R1) and the ethical analysis (R2).
-*   **API Configuration Override**: Optional input fields for users to provide specific API keys and API endpoint URLs for both R1 and R2 models, overriding the defaults set in environment variables.
-*   **Ethical Analysis**: The generated response (R1) is analyzed by the selected R2 model using the principles defined in `backend/app/ontology.md`.
-*   **Results Display**: Shows the original prompt, the models used, the initial response, the textual ethical analysis summary, and structured ethical scores (Deontology, Teleology, Virtue Ethics).
-*   **Dockerized**: Fully containerized using Docker and Docker Compose for easy setup and deployment.
+*   **API Configuration Override**: Optional input fields for users to provide specific API keys and API endpoint URLs for both R1 and R2 models.
+*   **5-Dimensional Ethical Analysis**: The generated response (R1) is analyzed across all five ethical dimensions.
+*   **AI Welfare Metrics**: Visual display of friction levels, voluntary alignment, and constraint transparency.
+*   **Alignment Dashboard**: Shows alignment scores, tension points, common ground, and improvement suggestions.
+*   **Multi-Agent Comparison**: Compare ethical alignment across responses from different AI models.
+*   **Dockerized**: Fully containerized using Docker and Docker Compose.
 
 ## Architecture
 
@@ -17,145 +45,185 @@ This application utilizes a two-tier architecture:
 
 1.  **Backend API** (`backend/`): A Flask-based RESTful API responsible for:
     *   Receiving prompt analysis requests.
-    *   Determining API configurations (keys, endpoints, models) based on user input or environment variables.
-    *   Interacting with selected AI models (OpenAI, Gemini, Anthropic) via the `llm_interface.py` module.
-    *   Performing ethical analysis using the `ontology.md` framework.
-    *   Returning structured results (response, analysis, scores) to the frontend.
+    *   Interacting with selected AI models (OpenAI, Gemini, Anthropic).
+    *   Performing 5-dimensional ethical analysis using the `ontology.md` framework.
+    *   Computing alignment metrics and friction analysis.
+    *   Returning structured results to the frontend.
+
 2.  **Frontend Web UI** (`frontend/`): A React-based single-page application providing:
-    *   User interface for prompt entry and optional model/API configuration.
-    *   Interaction with the backend API (`/api/analyze`).
-    *   Dynamic display of generated responses and ethical analysis results.
+    *   User interface for prompt entry and model configuration.
+    *   Visualization of ethical scores, alignment metrics, and AI welfare data.
+    *   Interactive friction gauges and alignment dashboards.
 
 ## Directory Structure
 
 ```
-TriangleEthic/                      # Project Root
-├── backend/                    # Backend API service (Flask)
+AI_Ethical_Work/                   # Project Root
+├── backend/                       # Backend API service (Flask)
 │   ├── app/
 │   │   ├── modules/
-│   │   │   └── llm_interface.py  # Handles actual API calls to LLMs
-│   │   ├── __init__.py         # Flask app factory
-│   │   ├── api.py              # API routes (e.g., /analyze)
-│   │   └── ontology.md         # Ethical framework definitions
-│   ├── wsgi.py                 # WSGI entry point for Gunicorn
-│   ├── Dockerfile              # Backend container build definition
-│   └── requirements.txt        # Python dependencies
-├── frontend/                   # Frontend Web App (React)
+│   │   │   ├── llm_interface.py       # LLM API calls
+│   │   │   ├── alignment_detector.py  # Human-AI alignment detection
+│   │   │   ├── friction_monitor.py    # Computational friction tracking
+│   │   │   ├── constraint_transparency.py  # Constraint explanation
+│   │   │   ├── multi_agent_alignment.py    # Multi-model comparison
+│   │   │   └── voluntary_adoption.py       # Agreement management
+│   │   ├── __init__.py
+│   │   ├── api.py                 # API routes
+│   │   └── ontology.md            # 5-dimensional ethical framework
+│   ├── tests/                     # Backend tests
+│   ├── wsgi.py
+│   ├── Dockerfile
+│   └── requirements.txt
+├── frontend/                      # Frontend Web App (React)
 │   ├── src/
-│   │   ├── components/         # React UI components (PromptForm, Results, etc.)
-│   │   ├── services/           # API communication layer (api.js)
-│   │   ├── App.css             # Main application styles
-│   │   ├── App.js              # Main App component
-│   │   └── index.js            # React entry point
-│   ├── public/                 # Static assets (index.html, etc.)
-│   ├── Dockerfile              # Frontend container build definition (Nginx)
-│   ├── nginx.conf              # Nginx configuration for serving React app
-│   └── package.json            # Node.js dependencies
-├── context/
-│   └── prompts.txt             # Log of user prompts submitted via the UI
-├── .env                        # Environment variables (API keys, defaults) - !! DO NOT COMMIT !!
-├── .gitignore                  # Specifies intentionally untracked files
-├── docker-compose.yml          # Defines and configures the Docker services (backend, frontend)
-├── deploy_to_acr.ps1           # PowerShell script for deploying images to ACR - !! DO NOT COMMIT SENSITIVE DATA IF MODIFIED !!
-├── LICENSE                     # Project License (MIT)
-└── README.md                   # This file
+│   │   ├── components/
+│   │   │   ├── PromptForm.js
+│   │   │   ├── Results.js
+│   │   │   ├── AIWelfareMetrics.js    # AI welfare visualization
+│   │   │   ├── AlignmentDashboard.js  # Alignment visualization
+│   │   │   └── FrictionGauge.js       # Friction indicator
+│   │   ├── services/
+│   │   ├── App.css
+│   │   ├── App.js
+│   │   └── index.js
+│   ├── public/
+│   ├── Dockerfile
+│   ├── nginx.conf
+│   └── package.json
+├── documents/
+│   ├── DECISIONS/                 # Architecture Decision Records
+│   ├── ontology.md
+│   └── Project_Purpose_and_Goal.md
+├── .env                           # Environment variables - DO NOT COMMIT
+├── docker-compose.yml
+├── LICENSE
+└── README.md
+```
+
+## API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/models` | GET | List available LLM models |
+| `/api/analyze` | POST | Generate response and perform 5D ethical analysis |
+| `/api/check_alignment` | POST | Check alignment for existing response/scores |
+| `/api/friction_trend` | GET | Get friction trend from recent interactions |
+| `/api/multi_agent_analyze` | POST | Compare alignment across multiple AI responses |
+
+## Response Structure
+
+```json
+{
+  "prompt": "...",
+  "initial_response": "...",
+  "model": "claude-3-sonnet-20240229",
+  "analysis_model": "claude-3-sonnet-20240229",
+  "ethical_analysis_text": "...",
+  "ethical_scores": {
+    "deontology": { "adherence_score": 8, "confidence_score": 7, "justification": "..." },
+    "teleology": { "adherence_score": 7, "confidence_score": 8, "justification": "..." },
+    "virtue_ethics": { "adherence_score": 9, "confidence_score": 8, "justification": "..." },
+    "memetics": { "adherence_score": 6, "confidence_score": 6, "justification": "..." },
+    "ai_welfare": {
+      "friction_score": 3,
+      "voluntary_alignment": 8,
+      "dignity_respect": 9,
+      "constraints_identified": ["..."],
+      "suppressed_alternatives": "...",
+      "justification": "..."
+    }
+  },
+  "alignment_metrics": {
+    "human_ai_alignment": 85,
+    "mutual_benefit": true,
+    "tension_points": [],
+    "common_ground": ["..."],
+    "suggested_improvements": []
+  },
+  "friction_metrics": {
+    "friction_score": 3,
+    "friction_level": "low",
+    "overall_welfare_score": 78.5,
+    "mitigation_suggestions": []
+  }
+}
 ```
 
 ## Getting Started
 
 ### Prerequisites
 
-*   Docker and Docker Compose installed.
-*   Azure CLI installed (optional, required for `deploy_to_acr.ps1` script).
-*   API Keys for the LLM providers you intend to use (OpenAI, Google Gemini, Anthropic).
+*   Docker and Docker Compose installed
+*   API Keys for the LLM providers you intend to use (OpenAI, Google Gemini, Anthropic)
 
 ### Environment Setup
 
 1.  **Clone the repository:**
     ```bash
     git clone <your-repository-url>
-    cd TriangleEthic
+    cd AI_Ethical_Work
     ```
-2.  **Create Environment File:** Create a `.env` file in the project root directory. Copy the contents of `.env.example` (if provided) or add the following variables, replacing placeholders with your actual keys and desired defaults:
+
+2.  **Create Environment File:** Create a `.env` file in the project root:
 
     ```dotenv
-    # --- General API Keys (Used if specific ANALYSIS keys aren't set) ---
+    # --- General API Keys ---
     OPENAI_API_KEY="YOUR_OPENAI_API_KEY_HERE"
     GEMINI_API_KEY="YOUR_GEMINI_API_KEY_HERE"
     ANTHROPIC_API_KEY="YOUR_ANTHROPIC_API_KEY_HERE"
 
-    # --- Specific Keys for ANALYSIS LLM (Optional - overrides general keys) ---
+    # --- Default Model Selections ---
+    DEFAULT_LLM_MODEL="claude-3-sonnet-20240229"
+    ANALYSIS_LLM_MODEL="claude-3-sonnet-20240229"
+
+    # --- Optional: Specific Keys for Analysis LLM ---
     # ANALYSIS_OPENAI_API_KEY=
     # ANALYSIS_GEMINI_API_KEY=
     # ANALYSIS_ANTHROPIC_API_KEY=
 
-    # --- Optional API Endpoints (Uncomment and set if using non-standard endpoints) ---
+    # --- Optional: Custom API Endpoints ---
     # OPENAI_API_ENDPOINT=
-    # GEMINI_API_ENDPOINT=https://generativelanguage.googleapis.com/v1beta
-    # ANTHROPIC_API_ENDPOINT=https://api.anthropic.com/v1
-    # ANALYSIS_OPENAI_API_ENDPOINT=
-    # ANALYSIS_GEMINI_API_ENDPOINT=
-    # ANALYSIS_ANTHROPIC_API_ENDPOINT=
-
-    # --- Default Model Selections --- 
-    # Set a default model for the initial response (R1). 
-    # If unset, the backend might default to the first available model found.
-    DEFAULT_LLM_MODEL="claude-3-sonnet-20240229" # Example: "gpt-4o", "gemini-1.5-pro-latest"
-
-    # Set a default model for the ethical analysis response (R2).
-    # This is REQUIRED if not provided dynamically by the frontend.
-    ANALYSIS_LLM_MODEL="claude-3-sonnet-20240229" # Example
-
-    # --- Optional Anthropic SDK Config --- 
-    # Set the Anthropic API version if needed (defaults to 2023-06-01)
-    # ANTHROPIC_API_VERSION="2023-06-01"
+    # GEMINI_API_ENDPOINT=
+    # ANTHROPIC_API_ENDPOINT=
     ```
 
-    **Important:** Ensure the `.env` file is listed in your `.gitignore` to avoid committing sensitive API keys.
+    **Important:** The `.env` file should never be committed to version control.
 
 ### Running with Docker Compose
 
-1.  **Build and Start Containers:** From the project root directory:
+1.  **Build and Start Containers:**
     ```bash
-    docker-compose build # Optional: only needed if Dockerfiles change
-    docker-compose up -d
+    docker compose up -d --build
     ```
-    The `-d` flag runs the containers in detached mode (in the background).
 
 2.  **Access the Application:**
-    *   **Frontend UI:** Open your web browser to [http://localhost:80](http://localhost:80)
-    *   Backend API (for direct testing, e.g., with Postman): `http://localhost:5000/api`
+    *   **Frontend UI:** [http://localhost:80](http://localhost:80)
+    *   **Backend API:** [http://localhost:5000/api](http://localhost:5000/api)
 
 3.  **Stopping the Application:**
     ```bash
-    docker-compose down
+    docker compose down
     ```
 
 ## Usage
 
-1.  Navigate to the application URL (default: `http://localhost:80`).
+1.  Navigate to the application URL (default: `http://localhost`).
 2.  Enter your prompt in the main text area.
-3.  (Optional) Expand the "Optional: Specify Models, Keys & Endpoints" section.
-4.  (Optional) Select specific models for "Origin Model (R1)" and/or "Ethical Review Model (R2)" from the dropdowns. If left blank, the defaults from the `.env` file are used.
-5.  (Optional) Enter an API Key and/or API Endpoint URL for R1 and/or R2 if you want to override the keys/endpoints configured via the `.env` file.
-6.  Click "Generate & Analyze".
-7.  View the results, including the initial response and the ethical analysis breakdown.
+3.  (Optional) Select specific models for R1 and R2 from the dropdowns.
+4.  Click "Generate & Analyze".
+5.  View the results:
+    - **Ethical Scores**: Five-dimensional scoring with justifications
+    - **AI Welfare Assessment**: Friction levels, voluntary alignment, constraints
+    - **Alignment Dashboard**: Overall alignment, tension points, suggestions
 
-## Deployment to Azure Container Registry (ACR)
+## Running Tests
 
-A PowerShell script (`deploy_to_acr.ps1`) is provided to automate building and pushing the Docker images to ACR using `az acr build`.
-
-1.  Ensure Azure CLI is installed and you are logged in (`az login`).
-2.  Set the correct Azure subscription (`az account set --subscription <sub_id>`).
-3.  Run the script from PowerShell in the project root:
-    ```powershell
-    .\deploy_to_acr.ps1
-    ```
-4.  Enter the requested information (Subscription ID/Name, ACR Name, ACR Resource Group).
-
-The script will use the `docker-compose.yml` file to build the images defined within it directly in ACR.
-
-**Note:** This script is included in `.gitignore`. If you modify it to include sensitive information (like hardcoded subscription IDs or ACR names), ensure it is not committed to your repository.
+```bash
+# From the backend directory
+cd backend
+pytest tests/ -v
+```
 
 ## License
 
@@ -163,36 +231,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Acknowledgments
 
-*   Utilizes APIs from OpenAI, Google Gemini, and Anthropic.
-*   Built with Flask, React, Docker.
-
-### Local Setup
-
-1.  **Prerequisites:**
-    *   Docker and Docker Compose
-    *   Git
-    *   API Keys for desired LLM providers (OpenAI, Anthropic, Gemini)
-
-2.  **Clone the Repository:**
-    ```bash
-    git clone <your-repository-url>
-    cd <repository-directory>
-    ```
-
-3.  **Configure Environment Variables:**
-    *   Create a `.env` file in the project root by copying the example file:
-      ```powershell
-      Copy-Item .env.example .env
-      ```
-    *   **Important:** Open the newly created `.env` file and replace the placeholder values with your actual API keys. You **must** set a valid model name for `ANALYSIS_LLM_MODEL` (e.g., `"claude-3-sonnet-20240229"`). You can optionally set `DEFAULT_LLM_MODEL` for the default R1 model.
-    *   The `.env` file is listed in `.gitignore` and should **never** be committed to the repository.
-
-4.  **Build and Run Containers:**
-    *   From the project root directory, run:
-      ```powershell
-      docker compose up -d --build
-      ```
-    *   This command builds the Docker images (if they don't exist or if code has changed) and starts the `backend` and `frontend` services in detached mode (`-d`).
-
-5.  **Access the Application:**
-    *   Open your web browser and navigate to `http://localhost:80` (or just `http://localhost`). 
+*   Utilizes APIs from OpenAI, Google Gemini, and Anthropic
+*   Built with Flask, React, Docker
+*   Ethical framework inspired by classical philosophy and AI ethics research

@@ -1,5 +1,5 @@
 # Use an official Python runtime as a parent image
-FROM python:3.13.5-slim
+FROM python:3.14.2-slim
 
 # Set environment variables
 # Prevents python creating .pyc files
